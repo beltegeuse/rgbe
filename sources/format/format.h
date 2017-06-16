@@ -1,5 +1,10 @@
 #pragma once
 
+#include <vector>
+#include <tuple>
+
+#include <pybind11/stl.h>
+
 #include <Python.h>
 
 #define EXT_UNKNOW  -1
@@ -40,6 +45,11 @@ int helper_get_ext(const char* path) {
   return EXT_UNKNOW;
 }
 
+typedef std::tuple<float, float, float> RGB;
+typedef std::vector<RGB> imgRGB;
+std::vector<unsigned char> imgMask;
+typedef std::tuple<std::tuple<int, int>, imgRGB> readReturn;
+
 class Format {
 protected:
   int width;
@@ -76,20 +86,13 @@ public:
   }
 
   // returns ((width, height), listImage)
-  PyObject* pack() const {
-    int totPixel;
-    PyObject* pixels = PyList_New(width * height);
-
+  readReturn pack() const {
+    std::vector<std::tuple<float, float, float>> pixels(width * height);
     for (int i = 0; i < width * height; i++) {
-      PyList_SetItem(pixels, i,
-          Py_BuildValue("(f,f,f)", data[i * 3], data[i * 3 + 1],
-              data[i * 3 + 2]));
+      pixels[i] = std::make_tuple( data[i * 3],  data[i * 3 + 1],  data[i * 3 + 2]);
     }
-
-    PyObject* resultsPy = Py_BuildValue("((i,i),O)", width, height, pixels);
-    Py_DECREF(pixels); // For avoid memory leaks
-
-    return resultsPy;
+    return std::make_tuple(std::make_tuple(width, height),
+                           pixels);
   }
 
   double* toDouble(float mult=1.f) const {

@@ -4,11 +4,8 @@
 #include <math.h>
 #include <stdio.h>
 
+#include "format/format.h"
 #include "config.h"
-
-#ifndef max
-#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
-#endif
 
 enum EErrorMetric {
   EMSE = 0,
@@ -57,7 +54,7 @@ void falseColor(float v, float vmin, float vmax, unsigned char& red,
 }
 
 float tvi(const float Y) {
-  float logY = log10f(max(0.0f, Y));
+  float logY = log10f(std::max(0.0f, Y));
   float logResult = 0;
 
   if (logY < -3.94f) {
@@ -79,27 +76,28 @@ float tvi(const float Y) {
   return powf(10.0f, logResult);
 }
 
-static float metricPix(const double * img1, const double * img2,
-                       int i, // pixel ID
+static float metricPix(RGB& pix1, RGB& pix2,
                        EErrorMetric metric) {
-  float Rdiff = 0.f, Gdiff = 0.f, Bdiff = 0.f;
+    float Rdiff = 0.f, Gdiff = 0.f, Bdiff = 0.f;
+
+    float r1 = std::get<0>(pix1), r2 = std::get<0>(pix2);
+    float g1 = std::get<1>(pix1), g2 = std::get<1>(pix2);
+    float b1 = std::get<2>(pix1), b2 = std::get<2>(pix2);
+
 
   // Compute the pixel differences
   if (metric == EMSE || metric == ERMSE ||
     metric == ERelative || metric == ETVI ||
     metric == ERelMSE) {
     // Difference between the pixels
-    Rdiff = (img1[i * 3] - img2[i * 3]);
-    Gdiff = (img1[i * 3 + 1] - img2[i * 3 + 1]);
-    Bdiff = (img1[i * 3 + 2] - img2[i * 3 + 2]);
+    Rdiff = (r1 - r2);
+    Gdiff = (g1 - g2);
+    Bdiff = (b1 - b2);
   } else if (metric == EMSE_LOG || metric == ERMSE_LOG) {
     // Logarithm difference
-    Rdiff = log(img1[i * 3] + 0.00001f)
-      - log(img2[i * 3] + 0.00001f);
-    Gdiff = log(img1[i * 3 + 1] + 0.00001f)
-      - log(img2[i * 3 + 1] + 0.00001f);
-    Bdiff = log(img1[i * 3 + 2] + 0.00001f)
-      - log(img2[i * 3 + 2] + 0.00001f);
+    Rdiff = log(r1 + 0.00001f) - log(r2 + 0.00001f);
+    Gdiff = log(g1 + 0.00001f) - log(g2 + 0.00001f);
+    Bdiff = log(b1 + 0.00001f) - log(b2 + 0.00001f);
   } else {
     printf("ERROR, No valid metric is found\n");
     return 0.f;
@@ -109,19 +107,15 @@ static float metricPix(const double * img1, const double * img2,
   float diff = 0.f;
   if (metric == ETVI) {
     diff = fabs(luminance(Rdiff,Gdiff,Bdiff));  //< Luminance computation
-    diff /= tvi(luminance(img2[i * 3],
-                          img2[i * 3 + 1],
-                          img2[i * 3 + 2]));
+    diff /= tvi(luminance(r2, g2, b2));
   } else if(metric == ERelMSE) {
-    float refGray = (img2[i * 3]+img2[i * 3 + 1]+img2[i * 3 + 2]) / 3;
+    float refGray = (r2+g2+b2) / 3;
     diff = (Rdiff+Gdiff+Bdiff)/3;
     diff *= diff;
     diff /= (refGray*refGray + 0.001);
   } else if (metric == ERelative) {
     diff = fabs(luminance(Rdiff,Gdiff,Bdiff));
-    diff /= (luminance(img2[i * 3],
-                       img2[i * 3 + 1],
-                       img2[i * 3 + 2]) + 0.0001);
+    diff /= (luminance(r2, g2, b2) + 0.0001);
   } else if(metric == EMSE || metric == ERMSE ||
     metric == EMSE_LOG || metric == ERMSE_LOG){
     diff = Rdiff * Rdiff + Gdiff * Gdiff + Bdiff * Bdiff;
@@ -143,10 +137,10 @@ static float errorNorm(float error,
   return error;
 }
 
-static float metric(const double * img1, const double * img2,
-                    const unsigned char * mask,
-                    unsigned char * imgdiff, int width, int height,
-                    EErrorMetric metric) {
+float metric(imgRGB& img1, imgRGB& img2,
+             const unsigned char * mask,
+             unsigned char * imgdiff,
+             EErrorMetric metric) {
 #if VERBOSE
   printf("Computing mse with a mult of %f\n",mult);
 #endif
@@ -154,7 +148,7 @@ static float metric(const double * img1, const double * img2,
   float error = 0.f;
   float divFactor = 0.f;
 
-  for (int i = 0; i < width * height; ++i) {
+  for (std::size_t i = 0; i < img1.size(); ++i) {
     // If we have a mask and the current mask pixel is non-zero
     if (mask != NULL && mask[i] != 0) {
       // We need to skip that pixel
@@ -166,7 +160,7 @@ static float metric(const double * img1, const double * img2,
       continue;
     }
 
-    float diff = metricPix(img1, img2, i, metric);
+    float diff = metricPix(img1[i], img2[i], metric);
     if (diff < 0) {
       printf("Error, diff negative !!!!\n ");
     }

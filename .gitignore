@@ -35,7 +35,6 @@ __pycache__/
 *$py.class
 
 # C extensions
-*.so
 
 # Distribution / packaging
 .Python
@@ -91,3 +90,5 @@ target/
 /.cproject
 /.project
 /.pydevproject
+/.idea/
+/cmake-build-debug/
