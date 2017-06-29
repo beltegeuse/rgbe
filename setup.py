@@ -36,6 +36,9 @@ class CMakeBuild(build_ext):
         cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
                       '-DPYTHON_EXECUTABLE=' + sys.executable]
 
+        if True: #verbose
+            cmake_args += ['-DCMAKE_VERBOSE_MAKEFILE:BOOL=ON']
+
         cfg = 'Debug' if self.debug else 'Release'
         build_args = ['--config', cfg]
 
@@ -51,6 +54,11 @@ class CMakeBuild(build_ext):
         env = os.environ.copy()
         env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
                                                               self.distribution.get_version())
+
+        if platform.system().lower()[:6] == "cygwin":
+            cmake_args += ['-DPYBIND11_CPP_STANDARD=-std=gnu++0x']
+            env['CXXFLAGS'] += ' -fno-use-linker-plugin'
+
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
@@ -60,7 +68,7 @@ setup(
     name='rgbe',
     version='0.0.2',
     author='Adrien Gruson',
-    author_email='adrien.grusond@gmail.com',
+    author_email='adrien.gruson@gmail.com',
     description='read/write and compute metric on hdr image files',
     long_description='',
     ext_modules=[CMakeExtension('rgbe')],
