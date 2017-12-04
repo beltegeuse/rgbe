@@ -57,9 +57,16 @@ protected:
   float* data;
 
 public:
-  Format(int w, int h, float* d):
-    width(w), height(h), data(d)
+  Format(int w, int h, const std::vector<std::vector<float>>& d):
+    width(w), height(h)
   {
+      data = (float *) malloc(sizeof(float) * 3 *width*height);
+      for (unsigned int i = 0; i < width*height; i++) {
+          for (unsigned int j = 0; j < 3; j++) {
+              // XXX Protect the reading
+              data[i * 3 + j] = d[i][j];
+          }
+      }
   }
   Format(const std::string& path):
     width(0), height(0), data(NULL)

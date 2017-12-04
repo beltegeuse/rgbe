@@ -20,6 +20,9 @@ namespace py = pybind11;
 #include <algorithm>
 #include <functional>
 
+// FIXME: Change to enum
+const int NBMETRIC = 7;
+
 void applyScale(imgRGB& img, float mult = 1.f) {
     for(std::size_t i = 0; i < img.size(); i++) {
         img[i] = std::make_tuple(std::get<0>(img[i])*mult,
@@ -81,13 +84,22 @@ int rgbe_rmse(int width, int height,
 //  return 0;
 }
 
+std::vector<float> computeErrors(imgRGB& imageHDR, imgRGB& imgHDRRef, unsigned char* imgMaskData) {
+    std::vector<float> errors(NBMETRIC, 0.f);
+    for (int idError = 0; idError < NBMETRIC; idError++) {
+        // We compute the RMSE
+        errors[idError] = metric(imageHDR, imgHDRRef, imgMaskData, NULL, (EErrorMetric) idError);
+    }
+    return errors;
+}
+
 std::vector<float> rgbe_rmse_all(int width, int height, imgRGB& imgHDR1,
                                  imgRGB& imgHDR2, float mult = 1.f,
                                  py::object imgMask = py::none()) {
 #if VERBOSE
     printf("Reading of the parameters successful, mult is %f\n", mult);
 #endif
-    std::vector<float> errors(6, 0.f);
+    std::vector<float> errors(NBMETRIC, -1.f);
 
     // Read all images
     applyScale(imgHDR1, mult);
@@ -98,11 +110,7 @@ std::vector<float> rgbe_rmse_all(int width, int height, imgRGB& imgHDR1,
         return errors;
     }
 
-    for (int idError = 0; idError < 6; idError++) {
-        // We compute the RMSE
-        float error = metric(imgHDR1, imgHDR2, imgMaskData, NULL, (EErrorMetric) idError);
-        errors[idError] = error;
-    }
+    errors = computeErrors(imgHDR1, imgHDR2, imgMaskData);
 
     // We return the rmse and the difference image
     return errors;
@@ -118,39 +126,35 @@ std::vector<std::vector<float>> rgbe_rmse_all_images(int width, int height,
     applyScale(imgHDRRef, mult);
     unsigned char * imgMaskData = 0;
     if (!imgMask.is_none()) {
-//        imgMaskData = convertListIntoArrayMask(imgMask, width * height);
         std::cerr << *imgMask;
         std::cerr << "No support for masking for now\n";
         return metrics;
     }
 
-    const int NBMETRIC = 7;
-
 #pragma omp parallel for
     for (int i = 0; i < (int) images.size(); i++) {
         // Open the image
         Format* f = loadImage(images[i]);
+        std::vector<float> errors(NBMETRIC, -1.f);
+
         if (f != NULL && f->getWidth() == width && f->getHeight() == height) {
             // FIXME: avoid to do this conversion
             imgRGB imageHDR = std::get<1>(f->pack());
             applyScale(imageHDR, mult);
             // Else, compute the metric
-            for (int idError = 0; idError < NBMETRIC; idError++) {
-                // We compute the RMSE
-                float error = metric(imageHDR, imgHDRRef, imgMaskData, NULL, (EErrorMetric) idError);
-                metrics[i].push_back(error);
-            }
-        } else {
-            // If there is an error on the image reading
-            for (int i = 0; i < NBMETRIC; i++) {
-                metrics[i].push_back(-1.f); // Invalid number
-            }
+            errors = computeErrors(imageHDR, imgHDRRef, imgMaskData);
         }
 
-        delete f;
-        std::cout << images[i] << ": ( " << metrics[i][0] << "; " << metrics[i][1]
-                  << "; " << metrics[i][2] << "; " << metrics[i][3] << "; "
-                  << metrics[i][4] << "; " << metrics[i][5] << "; " << metrics[i][6] << ")\n";
+        metrics[i] = errors;
+
+        if(f != NULL) delete f;
+
+        // Display computation results
+        std::cout << images[i] << ": ( ";
+        for(auto m : errors) {
+            std::cout << m << "; ";
+        }
+        std::cout << ")\n";
     }
 
     // Free memory
@@ -162,91 +166,64 @@ std::vector<std::vector<float>> rgbe_rmse_all_images(int width, int height,
 
 std::vector<std::vector<float>> rgbe_rmse_all_images_percentage(int width, int height, float percentage,
                                                                 const std::vector<std::string>& images,
-                                                                imgRGB& imgHDR2, float mult = 1.f) {
+                                                                imgRGB& imgHDRRef, float mult = 1.f) {
     std::vector<std::vector<float> > metrics(images.size());
-    std::cerr << "not implemented\n";
-    return metrics;
 
-//    if(percentage > 1.f || percentage <= 0.f) {
-//        std::cerr << "Invalid percentage: " << percentage << "\n";
-//        return 0;
-//    }
-//
-//    // Read the reference image and mask
-//    double * imgHDRRef = convertListIntoArray(imgHDR2, width * height, mult);
-//    unsigned char * imgMaskData = 0; // No mask for now
-//
-//    const int NBMETRIC = 7;
-//
-//    // Launch the computation
-//    std::vector<std::vector<float> > metrics(images.size());
-//
-//#pragma omp parallel for
-//    for (int i = 0; i < (int) images.size(); i++) {
-//        // Open the image
-//        Format* f = loadImage(images[i]);
-//        if (f != NULL && f->getWidth() == width && f->getHeight() == height) {
-//            double * imageHDRDouble = f->toDouble(mult);
-//            // Else, compute the metric
-//            for (int idError = 0; idError < NBMETRIC; idError++) {
-//                // Compute error pixel wise
-//                std::vector<float> pixelErrors(f->getWidth()*f->getHeight(), 0.0f);
-//                for (int i = 0; i < width * height; ++i) {
-//                    pixelErrors[i] = metricPix(imageHDRDouble, imgHDRRef, i, (EErrorMetric) idError);
-//                }
-//
-//                // Sort the metric vector
-//                // and compute the metric for the percentage of selected pixels
-//                std::sort(pixelErrors.begin(), pixelErrors.end());
-//                float error = 0.f;
-//                for (int i = 0; i < width * height * percentage; ++i) {
-//                    error += pixelErrors[i];
-//                }
-//                error = errorNorm(error, width * height * percentage, (EErrorMetric) idError);
-//
-//                // We compute the RMSE
-//                metrics[i].push_back(error);
-//            }
-//            delete[] imageHDRDouble;
-//        } else {
-//            // If there is an error on the image reading
-//            for (int i = 0; i < NBMETRIC; i++) {
-//                metrics[i].push_back(-1.f); // Invalid number
-//            }
-//        }
-//
-//        delete f;
-//        std::cout << images[i] << ": ( " << metrics[i][0] << "; " << metrics[i][1]
-//                  << "; " << metrics[i][2] << "; " << metrics[i][3] << "; "
-//                  << metrics[i][4] << "; " << metrics[i][5] << "; " << metrics[i][6] << ")\n";
-//    }
-//
-//    // Free memory
-//    delete[] imgHDRRef;
-//    if (imgMaskData)
-//        delete[] imgMaskData;
-//
-//    // Construct the python results
-//    PyObject * resPy = PyList_New(images.size());
-//    for(int i = 0; i < images.size(); i++) {
-//        PyList_SetItem(resPy, i, Py_BuildValue("fffffff", metrics[i][0], metrics[i][1],
-//                                               metrics[i][2], metrics[i][3], metrics[i][4], metrics[i][5],metrics[i][6]));
-//    }
-//
-//    return resPy;
-}
-
-
-float* convertImage(int width, int height, PyObject *imagePy) {
-    float* image = (float *) malloc(sizeof(float) * 3 *width*height);
-    for (unsigned int i = 0; i < width*height; i++) {
-        for (unsigned int j = 0; j < 3; j++) {
-            // XXX Protect the reading
-            image[i * 3 + j] = (float) PyFloat_AsDouble(
-              PyTuple_GetItem(PyList_GetItem(imagePy, i), j));
-        }
+    if(percentage > 1.f || percentage <= 0.f) {
+        std::cerr << "Invalid percentage: " << percentage << "\n";
+        return metrics; // Empty all
+        // FIXME: Add the -1 for all
     }
-    return image;
+
+    // Read the reference image and mask
+    applyScale(imgHDRRef, mult);
+    unsigned char * imgMaskData = 0;
+
+#pragma omp parallel for
+    for (int i = 0; i < (int) images.size(); i++) {
+        // Open the image
+        Format* f = loadImage(images[i]);
+        std::vector<float> errors(NBMETRIC, -1.f);
+
+        if (f != NULL && f->getWidth() == width && f->getHeight() == height) {
+            // FIXME: avoid to do this conversion
+            imgRGB imageHDR = std::get<1>(f->pack());
+            applyScale(imageHDR, mult);
+            // Else, compute the metric
+            for (int idError = 0; idError < NBMETRIC; idError++) {
+                // Compute error pixel wise
+                std::vector<float> pixelErrors(f->getWidth()*f->getHeight(), 0.0f);
+                for (int i = 0; i < width * height; ++i) {
+                    pixelErrors[i] = metricPix(imageHDR[i], imgHDRRef[i], (EErrorMetric) idError);
+                }
+
+                // Sort the metric vector
+                // and compute the metric for the percentage of selected pixels
+                std::sort(pixelErrors.begin(), pixelErrors.end());
+                float error = 0.f;
+                for (int i = 0; i < width * height * percentage; ++i) {
+                    error += pixelErrors[i];
+                }
+                error = errorNorm(error, width * height * percentage, (EErrorMetric) idError);
+
+                // We compute the RMSE
+                metrics[i].push_back(error);
+            }
+        }
+
+        metrics[i] = errors;
+
+        if(f != NULL) delete f;
+
+        // Display computation results
+        std::cout << images[i] << ": ( ";
+        for(auto m : errors) {
+            std::cout << m << "; ";
+        }
+        std::cout << ")\n";
+    }
+
+    return metrics;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -256,8 +233,8 @@ float* convertImage(int width, int height, PyObject *imagePy) {
 ///////////////////////////////////////////////////////////////////////////////
 
 /// write Radiance files
-bool rgbe_write_hdr(const std::string& path, int width, int height, PyObject *imagePy) {
-    float* image = convertImage(width, height, imagePy);
+bool rgbe_write_hdr(const std::string& path, int width, int height,
+                    const std::vector<std::vector<float>>& image) {
     FormatRGBE f(width, height, image);
     f.write(path);
 
@@ -265,17 +242,17 @@ bool rgbe_write_hdr(const std::string& path, int width, int height, PyObject *im
 }
 
 /// write PFM files
-bool rgbe_write_pfm(const std::string& path, int width, int height, PyObject *imagePy) {
-    float* image = convertImage(width, height, imagePy);
+bool rgbe_write_pfm(const std::string& path, int width, int height,
+                    const std::vector<std::vector<float>>& image) {
     FormatPFM f(width, height, image);
     f.write(path);
-
     return true;
 }
 
 /// write HDR files
 // Automatically choose the format
-bool rgbe_write(const std::string& path, int width, int height, PyObject *imagePy) {
+bool rgbe_write(const std::string& path, int width, int height,
+                const std::vector<std::vector<float>>& image) {
     // Read extension
     int ext = helper_get_ext(path.c_str());
     if (ext == EXT_UNKNOW) {
@@ -285,9 +262,9 @@ bool rgbe_write(const std::string& path, int width, int height, PyObject *imageP
 
     // Write the format by calling the dedicated function
     if (ext == EXT_RGBE) {
-        return rgbe_write_hdr(path, width, height, imagePy);
+        return rgbe_write_hdr(path, width, height, image);
     } else if (ext == EXT_PFM) {
-        return rgbe_write_pfm(path, width, height, imagePy);
+        return rgbe_write_pfm(path, width, height, image);
     } else {
         printf("ERROR: No writter, QUIT: %s\n", path.c_str());
         return false;
@@ -361,6 +338,7 @@ PyObject *rgbe_read_tonemap(const std::string& path, float gamma = 2.2f, float e
 void rgbe_merge(const std::string& path, int w, int h, int blockSize,
                 const std::string& outpath, const std::string& ext = "hdr") {
     // read local ...
+    // FIXME: Need to build the list of all the images
 }
 
 void rgbe_applyExposureGamma(pybind11::list img, double exposure = 1.0, double gamma = 2.2) {
