@@ -226,19 +226,6 @@ std::vector<std::vector<float>> rgbe_rmse_all_images_percentage(int width, int h
     return metrics;
 }
 
-
-float* convertImage(int width, int height, PyObject *imagePy) {
-    float* image = (float *) malloc(sizeof(float) * 3 *width*height);
-    for (unsigned int i = 0; i < width*height; i++) {
-        for (unsigned int j = 0; j < 3; j++) {
-            // XXX Protect the reading
-            image[i * 3 + j] = (float) PyFloat_AsDouble(
-              PyTuple_GetItem(PyList_GetItem(imagePy, i), j));
-        }
-    }
-    return image;
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 // Write Techniques
@@ -246,8 +233,8 @@ float* convertImage(int width, int height, PyObject *imagePy) {
 ///////////////////////////////////////////////////////////////////////////////
 
 /// write Radiance files
-bool rgbe_write_hdr(const std::string& path, int width, int height, PyObject *imagePy) {
-    float* image = convertImage(width, height, imagePy);
+bool rgbe_write_hdr(const std::string& path, int width, int height,
+                    const std::vector<std::vector<float>>& image) {
     FormatRGBE f(width, height, image);
     f.write(path);
 
@@ -255,17 +242,17 @@ bool rgbe_write_hdr(const std::string& path, int width, int height, PyObject *im
 }
 
 /// write PFM files
-bool rgbe_write_pfm(const std::string& path, int width, int height, PyObject *imagePy) {
-    float* image = convertImage(width, height, imagePy);
+bool rgbe_write_pfm(const std::string& path, int width, int height,
+                    const std::vector<std::vector<float>>& image) {
     FormatPFM f(width, height, image);
     f.write(path);
-
     return true;
 }
 
 /// write HDR files
 // Automatically choose the format
-bool rgbe_write(const std::string& path, int width, int height, PyObject *imagePy) {
+bool rgbe_write(const std::string& path, int width, int height,
+                const std::vector<std::vector<float>>& image) {
     // Read extension
     int ext = helper_get_ext(path.c_str());
     if (ext == EXT_UNKNOW) {
@@ -275,9 +262,9 @@ bool rgbe_write(const std::string& path, int width, int height, PyObject *imageP
 
     // Write the format by calling the dedicated function
     if (ext == EXT_RGBE) {
-        return rgbe_write_hdr(path, width, height, imagePy);
+        return rgbe_write_hdr(path, width, height, image);
     } else if (ext == EXT_PFM) {
-        return rgbe_write_pfm(path, width, height, imagePy);
+        return rgbe_write_pfm(path, width, height, image);
     } else {
         printf("ERROR: No writter, QUIT: %s\n", path.c_str());
         return false;

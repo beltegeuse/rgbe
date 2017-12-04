@@ -42,7 +42,7 @@ int RGBE_ReadPixels_RLE(FILE *fp, float *data, int scanline_width,
 
 class FormatRGBE : public Format {
 public:
-  FormatRGBE(int w, int h, float* d):
+  FormatRGBE(int w, int h, const std::vector<std::vector<float>>& d):
    Format(w,h,d)
   {
   }

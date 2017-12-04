@@ -13,7 +13,7 @@ int PFM_WriteHeader(FILE *fp, int width, int height);
 
 class FormatPFM : public Format {
 public:
-  FormatPFM(int w, int h, float* d):
+  FormatPFM(int w, int h, const std::vector<std::vector<float>>& d):
     Format(w,h,d)
   {
   }
