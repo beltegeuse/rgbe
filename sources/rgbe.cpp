@@ -31,64 +31,31 @@ void applyScale(imgRGB& img, float mult = 1.f) {
     }
 }
 
-int rgbe_rmse(int width, int height,
+std::vector<unsigned char> rgbe_rmse(int width, int height,
               imgRGB& imgHDR1,
               imgRGB& imgHDR2,
-              float mult = 1.f,
               int typeMetric = 0,
               const std::vector<bool>& mask = std::vector<bool>()) {
-    std::cerr << "not implemented...\n";
-    return 0;
+	std::vector<unsigned char> imgDiff(imgHDR1.size() * 3);
 
-//  // Check parameters
-//  if (typeMetric < 0 || typeMetric > 4) {
-//    printf("Error when reading the arguments, aborting.\n");
-//    return 0;
-//  }
-//#if VERBOSE
-//  printf("Reading of the parameters successful, mult is %f\n", mult);
-//#endif
-//
-//  // Read all images
-//    applyScale(imgHDR1, mult);
-//    applyScale(imgHDR2, mult);
-//    unsigned char * imgMaskData = 0;
-//    if (imgMask != 0 && imgMask != Py_None) {
-//        printf("No support for masking for now");
-//        return 0;
-//     }
-//
-//  // Compute the difference and fill diff image
-//  unsigned char * imgDiffData = new unsigned char[width * height * 3];
-//  float error = metric(imgHDR1Data, imgHDR2Data, imgMaskData, imgDiffData,
-//      width, height, (EErrorMetric) typeMetric);
-//
-//  // We write back the difference image to a python object
-//  // And pack the results
-//  PyObject * imgDiff = PyList_New(width * height);
-//  for (int i = 0; i < width * height; ++i) {
-//    PyList_SetItem(imgDiff, i,
-//        Py_BuildValue("(i,i,i)", imgDiffData[i * 3], imgDiffData[i * 3 + 1],
-//            imgDiffData[i * 3 + 2]));
-//  }
-//  PyObject * resultsPy = Py_BuildValue("fO", error, imgDiff);
-//  Py_DECREF(imgDiff);
-//
-//  // Free memory
-//  delete[] imgDiffData;
-//  if (imgMaskData) {
-//    delete[] imgMaskData;
-//  }
-//
-//  // We return the rmse and the difference image
-//  return 0;
+	if (typeMetric < 0 || typeMetric > 4) {
+      printf("Error when reading the arguments, aborting.\n");
+      return 0;
+    }
+
+    errors = metric(imgHDR1, imgHDR2, imgDiff, mask, typeMetric);
+	std::cout << "errors: " << error << "\n";
+
+    // We return the rmse and the difference image
+    return imgDiff;
 }
 
 std::vector<float> computeErrors(imgRGB& imageHDR, imgRGB& imgHDRRef, const std::vector<bool>& mask = std::vector<bool>()) {
     std::vector<float> errors(NBMETRIC, 0.f);
-    for (int idError = 0; idError < NBMETRIC; idError++) {
+    std::vector<unsigned char> imgDiff();
+	for (int idError = 0; idError < NBMETRIC; idError++) {
         // We compute the RMSE
-        errors[idError] = metric(imageHDR, imgHDRRef, mask, NULL, (EErrorMetric) idError);
+        errors[idError] = metric(imageHDR, imgHDRRef, imgDiff, mask, (EErrorMetric) idError);
     }
     return errors;
 }

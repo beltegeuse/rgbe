@@ -138,8 +138,8 @@ static float errorNorm(float error,
 }
 
 float metric(imgRGB& img1, imgRGB& img2,
+			 std::vector<unsigned char> imgdiff,
              const std::vector<bool>& mask = std::vector<bool>(),
-             unsigned char * imgdiff = 0,
              EErrorMetric metric = EMSE) {
 #if VERBOSE
   printf("Computing mse with a mult of %f\n",mult);
@@ -150,9 +150,9 @@ float metric(imgRGB& img1, imgRGB& img2,
 
   for (std::size_t i = 0; i < img1.size(); ++i) {
     // If we have a mask and the current mask pixel is non-zero
-    if (mask.size() == 0 || mask[i]) {
+    if (mask.size() != 0 && mask[i]) {
       // We need to skip that pixel
-      if (imgdiff != NULL) {
+      if (imgdiff.size() != 0) {
         imgdiff[i * 3] = 0;
         imgdiff[i * 3 + 1] = 0;
         imgdiff[i * 3 + 2] = 0;
@@ -170,7 +170,7 @@ float metric(imgRGB& img1, imgRGB& img2,
     ++n;
 
     // We compute the fake color
-    if (imgdiff != NULL) {
+    if (imgdiff.size() != 0) {
       float distance = diff;
       if (metric == ERMSE || metric == ERMSE_LOG) {
         distance = sqrt(distance);
