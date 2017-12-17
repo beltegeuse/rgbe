@@ -138,9 +138,9 @@ static float errorNorm(float error,
 }
 
 float metric(imgRGB& img1, imgRGB& img2,
-             const unsigned char * mask,
-             unsigned char * imgdiff,
-             EErrorMetric metric) {
+             const std::vector<bool>& mask = std::vector<bool>(),
+             unsigned char * imgdiff = 0,
+             EErrorMetric metric = EMSE) {
 #if VERBOSE
   printf("Computing mse with a mult of %f\n",mult);
 #endif
@@ -150,7 +150,7 @@ float metric(imgRGB& img1, imgRGB& img2,
 
   for (std::size_t i = 0; i < img1.size(); ++i) {
     // If we have a mask and the current mask pixel is non-zero
-    if (mask != NULL && mask[i] != 0) {
+    if (mask.size() == 0 || mask[i]) {
       // We need to skip that pixel
       if (imgdiff != NULL) {
         imgdiff[i * 3] = 0;

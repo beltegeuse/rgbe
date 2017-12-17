@@ -36,7 +36,7 @@ int rgbe_rmse(int width, int height,
               imgRGB& imgHDR2,
               float mult = 1.f,
               int typeMetric = 0,
-              PyObject *imgMask = NULL) {
+              const std::vector<bool>& mask = std::vector<bool>()) {
     std::cerr << "not implemented...\n";
     return 0;
 
@@ -84,18 +84,18 @@ int rgbe_rmse(int width, int height,
 //  return 0;
 }
 
-std::vector<float> computeErrors(imgRGB& imageHDR, imgRGB& imgHDRRef, unsigned char* imgMaskData) {
+std::vector<float> computeErrors(imgRGB& imageHDR, imgRGB& imgHDRRef, const std::vector<bool>& mask = std::vector<bool>()) {
     std::vector<float> errors(NBMETRIC, 0.f);
     for (int idError = 0; idError < NBMETRIC; idError++) {
         // We compute the RMSE
-        errors[idError] = metric(imageHDR, imgHDRRef, imgMaskData, NULL, (EErrorMetric) idError);
+        errors[idError] = metric(imageHDR, imgHDRRef, mask, NULL, (EErrorMetric) idError);
     }
     return errors;
 }
 
 std::vector<float> rgbe_rmse_all(int width, int height, imgRGB& imgHDR1,
                                  imgRGB& imgHDR2, float mult = 1.f,
-                                 py::object imgMask = py::none()) {
+                                 const std::vector<bool>& mask = std::vector<bool>()) {
 #if VERBOSE
     printf("Reading of the parameters successful, mult is %f\n", mult);
 #endif
@@ -104,13 +104,8 @@ std::vector<float> rgbe_rmse_all(int width, int height, imgRGB& imgHDR1,
     // Read all images
     applyScale(imgHDR1, mult);
     applyScale(imgHDR2, mult);
-    unsigned char * imgMaskData = 0;
-    if (!imgMask.is_none()) {
-        std::cerr << "No support for masking for now\n";
-        return errors;
-    }
 
-    errors = computeErrors(imgHDR1, imgHDR2, imgMaskData);
+    errors = computeErrors(imgHDR1, imgHDR2, mask);
 
     // We return the rmse and the difference image
     return errors;
@@ -119,17 +114,11 @@ std::vector<float> rgbe_rmse_all(int width, int height, imgRGB& imgHDR1,
 std::vector<std::vector<float>> rgbe_rmse_all_images(int width, int height,
                                                      const std::vector<std::string>& images,
                                                      imgRGB& imgHDRRef, float mult = 1.f,
-                                                     py::object imgMask = py::none()) {
+                                                     const std::vector<bool>& mask = std::vector<bool>()) {
     std::vector<std::vector<float> > metrics(images.size());
 
     // Read the reference image and mask
     applyScale(imgHDRRef, mult);
-    unsigned char * imgMaskData = 0;
-    if (!imgMask.is_none()) {
-        std::cerr << *imgMask;
-        std::cerr << "No support for masking for now\n";
-        return metrics;
-    }
 
 #pragma omp parallel for
     for (int i = 0; i < (int) images.size(); i++) {
@@ -142,7 +131,7 @@ std::vector<std::vector<float>> rgbe_rmse_all_images(int width, int height,
             imgRGB imageHDR = std::get<1>(f->pack());
             applyScale(imageHDR, mult);
             // Else, compute the metric
-            errors = computeErrors(imageHDR, imgHDRRef, imgMaskData);
+            errors = computeErrors(imageHDR, imgHDRRef, mask);
         }
 
         metrics[i] = errors;
@@ -156,10 +145,6 @@ std::vector<std::vector<float>> rgbe_rmse_all_images(int width, int height,
         }
         std::cout << ")\n";
     }
-
-    // Free memory
-    if (imgMaskData)
-        delete[] imgMaskData;
 
     return metrics;
 }
@@ -177,7 +162,6 @@ std::vector<std::vector<float>> rgbe_rmse_all_images_percentage(int width, int h
 
     // Read the reference image and mask
     applyScale(imgHDRRef, mult);
-    unsigned char * imgMaskData = 0;
 
 #pragma omp parallel for
     for (int i = 0; i < (int) images.size(); i++) {
