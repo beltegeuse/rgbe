@@ -40,19 +40,21 @@ std::vector<unsigned char> rgbe_rmse(int width, int height,
 
 	if (typeMetric < 0 || typeMetric > 4) {
       printf("Error when reading the arguments, aborting.\n");
-      return 0;
+      return imgDiff;
     }
 
-    errors = metric(imgHDR1, imgHDR2, imgDiff, mask, typeMetric);
-	std::cout << "errors: " << error << "\n";
+    float error = metric(imgHDR1, imgHDR2, imgDiff, mask, (EErrorMetric) typeMetric);
+	std::cout << "error: " << error << "\n";
 
     // We return the rmse and the difference image
     return imgDiff;
 }
 
-std::vector<float> computeErrors(imgRGB& imageHDR, imgRGB& imgHDRRef, const std::vector<bool>& mask = std::vector<bool>()) {
+std::vector<float> computeErrors(imgRGB& imageHDR, 
+								 imgRGB& imgHDRRef, 
+								 const std::vector<bool>& mask = std::vector<bool>()) {
     std::vector<float> errors(NBMETRIC, 0.f);
-    std::vector<unsigned char> imgDiff();
+    std::vector<unsigned char> imgDiff;
 	for (int idError = 0; idError < NBMETRIC; idError++) {
         // We compute the RMSE
         errors[idError] = metric(imageHDR, imgHDRRef, imgDiff, mask, (EErrorMetric) idError);

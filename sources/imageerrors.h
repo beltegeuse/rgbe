@@ -138,7 +138,7 @@ static float errorNorm(float error,
 }
 
 float metric(imgRGB& img1, imgRGB& img2,
-			 std::vector<unsigned char> imgdiff,
+			 std::vector<unsigned char>& imgdiff,
              const std::vector<bool>& mask = std::vector<bool>(),
              EErrorMetric metric = EMSE) {
 #if VERBOSE
