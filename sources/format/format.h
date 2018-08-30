@@ -7,9 +7,12 @@
 
 #include <Python.h>
 
-#define EXT_UNKNOW  -1
-#define EXT_RGBE  0
-#define EXT_PFM   1
+enum class Extension: char {
+  Unknown = 0,
+  RGBE = 1,
+  PFM = 2,
+  OpenEXR = 3,
+};
 
 void upper_string(char *string) {
   while (*string) {
@@ -20,7 +23,7 @@ void upper_string(char *string) {
   }
 }
 
-int helper_get_ext(const char* path) {
+Extension helper_get_ext(const char* path) {
   char * pathTmp;
   char * posPoint;
 
@@ -29,20 +32,22 @@ int helper_get_ext(const char* path) {
   posPoint = strrchr(pathTmp, '.');
 
   if (posPoint == NULL) {
-    return EXT_UNKNOW;
+    return Extension::Unknown;
   }
 
   if (strcmp(posPoint, ".PFM") == 0) {
-    return EXT_PFM;
+    return Extension::PFM;
   } else if (strcmp(posPoint, ".HDR") == 0) {
-    return EXT_RGBE;
+    return Extension::RGBE;
   } else if (strcmp(posPoint, ".RGBE") == 0) {
-    return EXT_RGBE;
+    return Extension::RGBE;
+  } else if (strcmp(posPoint, ".EXR") == 0) {
+    return Extension::OpenEXR;
   }
 
   free(pathTmp);
 
-  return EXT_UNKNOW;
+  return Extension::Unknown;
 }
 
 typedef std::tuple<float, float, float> RGB;
@@ -63,7 +68,6 @@ public:
       data = (float *) malloc(sizeof(float) * 3 *width*height);
       for (unsigned int i = 0; i < width*height; i++) {
           for (unsigned int j = 0; j < 3; j++) {
-              // XXX Protect the reading
               data[i * 3 + j] = d[i][j];
           }
       }
@@ -113,20 +117,23 @@ public:
 
 #include "rgbe.h"
 #include "pfm.h"
+#include "openexr.h"
 
 Format* loadImage(const std::string& path) {
-  int ext = helper_get_ext(path.c_str());
-  if (ext == EXT_UNKNOW) {
+  auto ext = helper_get_ext(path.c_str());
+  if (ext == Extension::Unknown) {
     printf("ERROR: Unkown extension, QUIT: %s\n", path.c_str());
     return NULL;
   }
 
   Format* f = NULL;
   // Header reading
-  if (ext == EXT_RGBE) {
+  if (ext == Extension::RGBE) {
     f = new FormatRGBE(path);
-  } else if (ext == EXT_PFM) {
+  } else if (ext == Extension::PFM) {
     f = new FormatPFM(path);
+  } else if (ext == Extension::OpenEXR) {
+    f = new FormatOpenEXR(path);
   } else {
     printf("ERROR: No Reader, QUIT: %s\n", path.c_str());
   }

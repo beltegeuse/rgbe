@@ -12,13 +12,18 @@ try:
 except ImportError:
     from PIL import Image
 
+def copyPixeltoPIL(w, h, p, im):
+    clamp = lambda x : 255 if math.isnan(x) else int(x*255)
+    pInt = [(clamp(c[0]),clamp(c[1]),clamp(c[2])) for c in p]
+    im.putdata(pInt)
+
 def tonemap(path, dest, exposure, gamma):
     (width,height),p = rgbe.io.read(path)
     print("[DEBUG] Read HDR image ",width,"x",height," (exp:", exposure, ")")
     rgbe.utils.applyExposureGamma(p, exposure, gamma)
     
     im = Image.new("RGB", (width,height)) 
-    rgbe.utils.copyPixeltoPIL(width, height, p, im)
+    copyPixeltoPIL(width, height, p, im)
     im.save(dest)
 
 def tonemap_fast(path, dest, exposure, gamma):
@@ -58,7 +63,7 @@ def diffHDR(path, pathRef, dest, scale):
         
         # Write image
         im = Image.new("RGB", (width,height)) 
-        rgbe.utils.copyPixeltoPIL(width, height, fakeIm, im)  
+        copyPixeltoPIL(width, height, fakeIm, im)
             
         print("[INFO] RMSE = ", rmse.rmse / (width*height))
         im.save(dest)
@@ -71,6 +76,8 @@ def test_rmse_all_images(images, ref):
 
 if __name__=="__main__":
     tonemap("test.hdr", "test.jpg", 8, 2.2)
+    tonemap("glacier.exr", "glacier.jpg", 1, 2.2)
+    scale("glacier.exr", "glacier_2.exr", 2.0)
     tonemap_fast("test.hdr", "test_fast.jpg", 8, 2.2)
     scale("test.hdr", "test_256.hdr", 1.0)
     diffHDR("compare.hdr", "ref.hdr", "diff.png", 1)

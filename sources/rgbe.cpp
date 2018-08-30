@@ -51,8 +51,8 @@ std::vector<unsigned char> rgbe_rmse(int width, int height,
 }
 
 std::vector<float> computeErrors(imgRGB& imageHDR, 
-								 imgRGB& imgHDRRef, 
-								 const std::vector<bool>& mask = std::vector<bool>()) {
+				 imgRGB& imgHDRRef, 
+				 const std::vector<bool>& mask = std::vector<bool>()) {
     std::vector<float> errors(NBMETRIC, 0.f);
     std::vector<unsigned char> imgDiff;
 	for (int idError = 0; idError < NBMETRIC; idError++) {
@@ -184,40 +184,30 @@ std::vector<std::vector<float>> rgbe_rmse_all_images_percentage(int width, int h
 // Write Techniques
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-
-/// write Radiance files
-bool rgbe_write_hdr(const std::string& path, int width, int height,
-                    const std::vector<std::vector<float>>& image) {
-    FormatRGBE f(width, height, image);
-    f.write(path);
-
-    return true;
-}
-
-/// write PFM files
-bool rgbe_write_pfm(const std::string& path, int width, int height,
-                    const std::vector<std::vector<float>>& image) {
-    FormatPFM f(width, height, image);
-    f.write(path);
-    return true;
-}
-
 /// write HDR files
 // Automatically choose the format
 bool rgbe_write(const std::string& path, int width, int height,
                 const std::vector<std::vector<float>>& image) {
     // Read extension
-    int ext = helper_get_ext(path.c_str());
-    if (ext == EXT_UNKNOW) {
+    auto ext = helper_get_ext(path.c_str());
+    if (ext == Extension::Unknown) {
         printf("ERROR: Unkown extension, QUIT: %s\n", path.c_str());
         return false;
     }
 
     // Write the format by calling the dedicated function
-    if (ext == EXT_RGBE) {
-        return rgbe_write_hdr(path, width, height, image);
-    } else if (ext == EXT_PFM) {
-        return rgbe_write_pfm(path, width, height, image);
+    if (ext == Extension::RGBE) {
+        FormatRGBE f(width, height, image);
+        f.write(path);
+        return true;
+    } else if (ext == Extension::PFM) {
+        FormatPFM f(width, height, image);
+        f.write(path);
+        return true;
+    } else if (ext == Extension::OpenEXR) {
+        FormatOpenEXR f(width, height, image);
+        f.write(path);
+        return true;
     } else {
         printf("ERROR: No writter, QUIT: %s\n", path.c_str());
         return false;
@@ -231,31 +221,24 @@ bool rgbe_write(const std::string& path, int width, int height,
 ///////////////////////////////////////////////////////////////////////////////
 
 /// read HDR files
-readReturn rgbe_read_hdr(const std::string& path) {
-    FormatRGBE f(path);
-    return f.pack();
-}
-
-/// read HDR files
-readReturn rgbe_read_pfm(const std::string& path) {
-    FormatPFM f(path);
-    return f.pack();
-}
-
-/// read HDR files
 readReturn rgbe_read(const std::string& path) {
-    int ext = helper_get_ext(path.c_str());
-    if (ext == EXT_UNKNOW) {
+    auto ext = helper_get_ext(path.c_str());
+    if (ext == Extension::Unknown) {
         printf("ERROR: Unkown extension, QUIT: %s\n", path.c_str());
         std::vector<std::tuple<float,float,float>> pixels(0);
         return std::make_tuple(std::make_tuple(0,0), pixels);
     }
 
     // === Read info
-    if (ext == EXT_RGBE) {
-        return rgbe_read_hdr(path);
-    } else if (ext == EXT_PFM) {
-        return rgbe_read_pfm(path);
+    if (ext == Extension::RGBE) {
+        FormatRGBE f(path);
+        return f.pack();
+    } else if (ext == Extension::PFM) {
+        FormatPFM f(path);
+        return f.pack();
+    } else if (ext == Extension::OpenEXR) {
+        FormatOpenEXR f(path);
+        return f.pack();
     } else {
         printf("ERROR: No Reader, QUIT: %s\n", path.c_str());
         std::vector<std::tuple<float,float,float>> pixels(0);
@@ -321,16 +304,12 @@ PYBIND11_MODULE(rgbe, m) {
     pybind11::module mIO = m.def_submodule("io", "A submodule of 'example'");
     mIO.doc() = "read and write HDR files (.pfm, .hdr)";
     mIO.def("read", &rgbe_read, "read hdr file (.pfm, .hdr)");
-    mIO.def("read_pfm", &rgbe_read_pfm, "read pfm hdr file (.pfm)");
-    mIO.def("read_hdr", &rgbe_read_hdr, "read rgbe hdr file (.hdr)");
 
     // Special read methods
     mIO.def("read_tonemap", &rgbe_read_tonemap, "read and tonemap an hdr image");
 
     // Write methods
     mIO.def("write", &rgbe_write, "write hdr file (.pfm, .hdr)");
-    mIO.def("write_pfm", &rgbe_write_pfm, "write pfm hdr file (.pfm)");
-    mIO.def("write_hdr", &rgbe_write_hdr, "write rgbe hdr file (.pfm)");
 
     pybind11::module mMerge = m.def_submodule("merge", "A submodule of 'example'");
     mMerge.doc() = "merge multiple hdr files into a big hdr file";
