@@ -14,7 +14,9 @@ enum EErrorMetric {
   ERMSE_LOG = 3,
   ETVI = 4,
   ERelative = 5,
-  ERelMSE = 6
+  ERelMSE = 6,
+  ESMAPE = 7,
+  ENUMBER_METRIC = 8,
 };
 
 double luminance(double R, double G, double B) {
@@ -88,7 +90,7 @@ static float metricPix(RGB& pix1, RGB& pix2,
   // Compute the pixel differences
   if (metric == EMSE || metric == ERMSE ||
     metric == ERelative || metric == ETVI ||
-    metric == ERelMSE) {
+    metric == ERelMSE || metric == ESMAPE) {
     // Difference between the pixels
     Rdiff = (r1 - r2);
     Gdiff = (g1 - g2);
@@ -106,19 +108,23 @@ static float metricPix(RGB& pix1, RGB& pix2,
   // The different way to compute the difference
   float diff = 0.f;
   if (metric == ETVI) {
-    diff = fabs(luminance(Rdiff,Gdiff,Bdiff));  //< Luminance computation
+    diff = luminance(fabs(Rdiff),fabs(Gdiff),fabs(Bdiff));  //< Luminance computation
     diff /= tvi(luminance(r2, g2, b2));
   } else if(metric == ERelMSE) {
-    float refGray = (r2+g2+b2) / 3;
-    diff = (Rdiff+Gdiff+Bdiff)/3;
+    float refGray = (r2*r2+g2*g2+b2*b2);
+    diff = (Rdiff*Rdiff+Gdiff*Gdiff+Bdiff*Bdiff);
     diff *= diff;
-    diff /= (refGray*refGray + 0.001);
+    diff /= (refGray + 0.0001);
   } else if (metric == ERelative) {
-    diff = fabs(luminance(Rdiff,Gdiff,Bdiff));
+    diff = luminance(fabs(Rdiff),fabs(Gdiff),fabs(Bdiff));
     diff /= (luminance(r2, g2, b2) + 0.0001);
   } else if(metric == EMSE || metric == ERMSE ||
     metric == EMSE_LOG || metric == ERMSE_LOG){
     diff = Rdiff * Rdiff + Gdiff * Gdiff + Bdiff * Bdiff;
+  } else if (metric == ESMAPE) {
+    diff = fabs(Rdiff) + fabs(Gdiff) + fabs(Bdiff);
+    diff /= (r1 + r2 + g1 + g2 + b1 + b2 + 0.0001);
+    diff *= 2.0;
   } else {
     printf("ERROR, No valid metric is found (Diff computation)\n");
     return 0.f;
@@ -129,8 +135,9 @@ static float metricPix(RGB& pix1, RGB& pix2,
 static float errorNorm(float error,
                        int n, // Number of pixels treated
                        EErrorMetric metric) {
-  if (n != 0)
+  if (n != 0) {
     error /= (float) n;
+  }
   if (metric == ERMSE || metric == ERMSE_LOG) {
     error = sqrt(error);
   }

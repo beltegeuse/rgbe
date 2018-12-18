@@ -20,9 +20,6 @@ namespace py = pybind11;
 #include <algorithm>
 #include <functional>
 
-// FIXME: Change to enum
-const int NBMETRIC = 7;
-
 void applyScale(imgRGB& img, float mult = 1.f) {
     for(std::size_t i = 0; i < img.size(); i++) {
         img[i] = std::make_tuple(std::get<0>(img[i])*mult,
@@ -38,7 +35,7 @@ std::vector<unsigned char> rgbe_rmse(int width, int height,
               const std::vector<bool>& mask = std::vector<bool>()) {
 	std::vector<unsigned char> imgDiff(imgHDR1.size() * 3);
 
-	if (typeMetric < 0 || typeMetric > 4) {
+	if (typeMetric < 0 || typeMetric > ENUMBER_METRIC) {
       printf("Error when reading the arguments, aborting.\n");
       return imgDiff;
     }
@@ -53,9 +50,9 @@ std::vector<unsigned char> rgbe_rmse(int width, int height,
 std::vector<float> computeErrors(imgRGB& imageHDR, 
 				 imgRGB& imgHDRRef, 
 				 const std::vector<bool>& mask = std::vector<bool>()) {
-    std::vector<float> errors(NBMETRIC, 0.f);
+    std::vector<float> errors(ENUMBER_METRIC, 0.f);
     std::vector<unsigned char> imgDiff;
-	for (int idError = 0; idError < NBMETRIC; idError++) {
+	for (int idError = 0; idError < ENUMBER_METRIC; idError++) {
         // We compute the RMSE
         errors[idError] = metric(imageHDR, imgHDRRef, imgDiff, mask, (EErrorMetric) idError);
     }
@@ -68,7 +65,7 @@ std::vector<float> rgbe_rmse_all(int width, int height, imgRGB& imgHDR1,
 #if VERBOSE
     printf("Reading of the parameters successful, mult is %f\n", mult);
 #endif
-    std::vector<float> errors(NBMETRIC, -1.f);
+    std::vector<float> errors(ENUMBER_METRIC, -1.f);
 
     // Read all images
     applyScale(imgHDR1, mult);
@@ -93,7 +90,7 @@ std::vector<std::vector<float>> rgbe_rmse_all_images(int width, int height,
     for (int i = 0; i < (int) images.size(); i++) {
         // Open the image
         Format* f = loadImage(images[i]);
-        std::vector<float> errors(NBMETRIC, -1.f);
+        std::vector<float> errors(ENUMBER_METRIC, -1.f);
 
         if (f != NULL && f->getWidth() == width && f->getHeight() == height) {
             // FIXME: avoid to do this conversion
@@ -136,14 +133,14 @@ std::vector<std::vector<float>> rgbe_rmse_all_images_percentage(int width, int h
     for (int i = 0; i < (int) images.size(); i++) {
         // Open the image
         Format* f = loadImage(images[i]);
-        std::vector<float> errors(NBMETRIC, -1.f);
+        std::vector<float> errors(ENUMBER_METRIC, -1.f);
 
         if (f != NULL && f->getWidth() == width && f->getHeight() == height) {
             // FIXME: avoid to do this conversion
             imgRGB imageHDR = std::get<1>(f->pack());
             applyScale(imageHDR, mult);
             // Else, compute the metric
-            for (int idError = 0; idError < NBMETRIC; idError++) {
+            for (int idError = 0; idError < ENUMBER_METRIC; idError++) {
                 // Compute error pixel wise
                 std::vector<float> pixelErrors(f->getWidth()*f->getHeight(), 0.0f);
                 for (int i = 0; i < width * height; ++i) {
@@ -157,10 +154,7 @@ std::vector<std::vector<float>> rgbe_rmse_all_images_percentage(int width, int h
                 for (int i = 0; i < width * height * percentage; ++i) {
                     error += pixelErrors[i];
                 }
-                error = errorNorm(error, width * height * percentage, (EErrorMetric) idError);
-
-                // We compute the RMSE
-                metrics[i].push_back(error);
+                errors[idError] = errorNorm(error, width * height * percentage, (EErrorMetric) idError);
             }
         }
 

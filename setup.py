@@ -66,7 +66,7 @@ class CMakeBuild(build_ext):
 
 setup(
     name='rgbe',
-    version='0.0.3',
+    version='0.0.4',
     author='Adrien Gruson',
     author_email='adrien.gruson@gmail.com',
     description='read/write and compute metric on hdr image files',
