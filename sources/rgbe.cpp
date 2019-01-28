@@ -240,29 +240,30 @@ readReturn rgbe_read(const std::string& path) {
     }
 }
 
-PyObject *rgbe_read_tonemap(const std::string& path, float gamma = 2.2f, float exposure = 0.0f) {
-    Format* f = loadImage(path);
+std::tuple < std::tuple<int, int>, std::vector<std::tuple<int, int, int>> > rgbe_read_tonemap(const std::string &path, float gamma = 2.2f, float exposure = 0.0f)
+{
+    Format *f = loadImage(path);
     // Header reading
-    if (f == NULL) {
-        return Py_BuildValue("(i,i)", 0, 0);
+    if (f == NULL)
+    {
+        std::vector<std::tuple<int, int, int>> pixels(0);
+        return std::make_tuple(std::make_tuple(0, 0), pixels);
     }
 
     // List creation
-    PyObject* pixels = PyList_New(f->getWidth() * f->getHeight());
+    std::vector<std::tuple<int, int, int>> pixels(f->getWidth() * f->getHeight());
     exposure = powf(2, exposure);
-    float* image = f->getData();
-    for (int i = 0; i < f->getWidth()*f->getHeight(); i++) {
-        PyList_SetItem(pixels, i,
-                       Py_BuildValue("(i,i,i)",
-                                     (int) (powf(image[i * 3] * exposure, 1.f / gamma) * 255),
-                                     (int) (powf(image[i * 3 + 1] * exposure, 1.f / gamma) * 255),
-                                     (int) (powf(image[i * 3 + 2] * exposure, 1.f / gamma) * 255)));
+    float *image = f->getData();
+    for (int i = 0; i < f->getWidth() * f->getHeight(); i++)
+    {
+        pixels[i] = std::make_tuple(
+            (int)(powf(image[i * 3] * exposure, 1.f / gamma) * 255),
+            (int)(powf(image[i * 3 + 1] * exposure, 1.f / gamma) * 255),
+            (int)(powf(image[i * 3 + 2] * exposure, 1.f / gamma) * 255));
     }
 
-    PyObject* resultsPy = Py_BuildValue("((i,i),O)", f->getWidth(), f->getHeight(), pixels);
-    Py_DECREF(pixels);
-
-    return resultsPy;
+    return std::make_tuple(std::make_tuple(f->getWidth(), f->getHeight()),
+                           pixels);
 }
 
 void rgbe_merge(const std::string& path, int w, int h, int blockSize,

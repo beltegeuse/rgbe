@@ -107,6 +107,7 @@ static float metricPix(RGB& pix1, RGB& pix2,
 
   // The different way to compute the difference
   float diff = 0.f;
+  const float epsilon = 0.01;
   if (metric == ETVI) {
     diff = luminance(fabs(Rdiff),fabs(Gdiff),fabs(Bdiff));  //< Luminance computation
     diff /= tvi(luminance(r2, g2, b2));
@@ -114,16 +115,16 @@ static float metricPix(RGB& pix1, RGB& pix2,
     float refGray = (r2*r2+g2*g2+b2*b2);
     diff = (Rdiff*Rdiff+Gdiff*Gdiff+Bdiff*Bdiff);
     diff *= diff;
-    diff /= (refGray + 0.0001);
+    diff /= (refGray + epsilon);
   } else if (metric == ERelative) {
     diff = luminance(fabs(Rdiff),fabs(Gdiff),fabs(Bdiff));
-    diff /= (luminance(r2, g2, b2) + 0.0001);
+    diff /= (luminance(r2, g2, b2) + epsilon);
   } else if(metric == EMSE || metric == ERMSE ||
     metric == EMSE_LOG || metric == ERMSE_LOG){
     diff = Rdiff * Rdiff + Gdiff * Gdiff + Bdiff * Bdiff;
   } else if (metric == ESMAPE) {
     diff = fabs(Rdiff) + fabs(Gdiff) + fabs(Bdiff);
-    diff /= (r1 + r2 + g1 + g2 + b1 + b2 + 0.0001);
+    diff /= (r1 + r2 + g1 + g2 + b1 + b2 + epsilon);
     diff *= 2.0;
   } else {
     printf("ERROR, No valid metric is found (Diff computation)\n");
